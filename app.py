@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -5,6 +6,109 @@ from PIL import Image
 import torch
 import torchvision.transforms as transforms
 import timm
+
+try:
+    import gdown
+except ImportError:
+    gdown = None
+
+MODEL_DRIVE_FOLDER = "https://drive.google.com/drive/folders/1J0MuGZ9M40f9FGCmHO5k0KgFZOcN4xq"
+MODEL_DIR = "models"
+MODEL_FILES = [
+    "vgg16_best_model.h5",
+    "resnet.h5",
+    "mobilenetv2_final_model.h5",
+    "inception.h5",
+    "densenet121.h5",
+    "best_effnet_model.pth",
+]
+
+# Replace the empty values below with the individual Google Drive file IDs
+# for each model file. Example:
+# "vgg16_best_model.h5": "https://drive.google.com/uc?id=FILE_ID"
+MODEL_FILE_URLS = {
+    "vgg16_best_model.h5": "https://drive.google.com/file/d/11QHatPQ5O3p1QeWEfGf-NzOPqz522h1q/view?usp=sharing",
+    "resnet.h5": "https://drive.google.com/file/d/1OMeSZXhqn-1zxaXiglL9sc2VFxjZEXPC/view?usp=sharing",
+    "mobilenetv2_final_model.h5": "https://drive.google.com/file/d/1PjH84MYSGK03vCGpS1UdYWpTCSd9jy-7/view?usp=sharing",
+    "inception.h5": "https://drive.google.com/file/d/1akF88bFul4M4ZQtM1GnpBar9I7c1a4ub/view?usp=sharing",
+    "densenet121.h5": "https://drive.google.com/file/d/1oDhRxOcFpJ9Vf5dOwY79iRZycAXTmqsW/view?usp=sharing",
+    "best_effnet_model.pth": "https://drive.google.com/file/d/1xwDyBCZmwFcnKxpPvoXkWcuKH979yLZg/view?usp=sharing",
+}
+
+# -----------------------------------
+# Download model files from Google Drive
+# -----------------------------------
+
+def _download_folder():
+    for use_cookies in (False, True):
+        try:
+            print(f"Trying folder download with use_cookies={use_cookies}...")
+            gdown.download_folder(MODEL_DRIVE_FOLDER, output=MODEL_DIR, quiet=False, use_cookies=use_cookies)
+            return True
+        except Exception as e:
+            print(f"Folder download failed (use_cookies={use_cookies}): {e}")
+    return False
+
+
+def _download_individual_files():
+    any_downloaded = False
+    for file_name, url in MODEL_FILE_URLS.items():
+        if not url:
+            continue
+
+        dest = os.path.join(MODEL_DIR, file_name)
+        if os.path.exists(dest):
+            continue
+
+        print(f"Downloading {file_name} from Drive URL...")
+        gdown.download(url, dest, quiet=False)
+        any_downloaded = True
+
+    return any_downloaded
+
+
+def ensure_models_present():
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    missing = [name for name in MODEL_FILES if not os.path.exists(os.path.join(MODEL_DIR, name))]
+    if not missing:
+        return
+
+    if gdown is None:
+        raise ImportError(
+            "gdown is required to download model files. "
+            "Please install dependencies with:\n    pip install -r requirements.txt"
+        )
+
+    print("Downloading model files from Google Drive. This may take a few minutes...")
+    downloaded = _download_folder()
+
+    if not downloaded:
+        print("Folder download failed. Trying per-file download using MODEL_FILE_URLS...")
+        downloaded = _download_individual_files()
+
+    for root, _, files in os.walk(MODEL_DIR):
+        for file_name in files:
+            if file_name in MODEL_FILES:
+                src = os.path.join(root, file_name)
+                dst = os.path.join(MODEL_DIR, file_name)
+                if src != dst:
+                    os.replace(src, dst)
+
+    for root, dirs, files in os.walk(MODEL_DIR, topdown=False):
+        if root == MODEL_DIR:
+            continue
+        if not os.listdir(root):
+            os.rmdir(root)
+
+    missing_after = [name for name in MODEL_FILES if not os.path.exists(os.path.join(MODEL_DIR, name))]
+    if missing_after:
+        raise FileNotFoundError(
+            f"Missing downloaded model files: {missing_after}. "
+            "If folder download fails, set individual Drive links in MODEL_FILE_URLS for each model file, "
+            "or place the files manually into the models/ folder."
+        )
+
+ensure_models_present()
 
 # -----------------------------------
 # Custom CSS for Beautiful Gradient Design
@@ -225,35 +329,35 @@ def load_models():
     
     # Load TensorFlow/Keras models
     try:
-        models['VGG16'] = tf.keras.models.load_model("vgg16.h5", compile=False)
+        models['VGG16'] = tf.keras.models.load_model(os.path.join(MODEL_DIR, "vgg16_best_model.h5"), compile=False)
         print("VGG16 loaded successfully")
     except Exception as e:
         models['VGG16'] = None
         print(f"VGG16 loading error: {str(e)}")
     
     try:
-        models['ResNet50'] = tf.keras.models.load_model("resnet50.h5", compile=False)
+        models['ResNet50'] = tf.keras.models.load_model(os.path.join(MODEL_DIR, "resnet.h5"), compile=False)
         print("ResNet50 loaded successfully")
     except Exception as e:
         models['ResNet50'] = None
         print(f"ResNet50 loading error: {str(e)}")
     
     try:
-        models['MobileNetV2'] = tf.keras.models.load_model("mobilenetv2.h5", compile=False)
+        models['MobileNetV2'] = tf.keras.models.load_model(os.path.join(MODEL_DIR, "mobilenetv2_final_model.h5"), compile=False)
         print("MobileNetV2 loaded successfully")
     except Exception as e:
         models['MobileNetV2'] = None
         print(f"MobileNetV2 loading error: {str(e)}")
     
     try:
-        models['DenseNet121'] = tf.keras.models.load_model("densenet121.h5", compile=False)
+        models['DenseNet121'] = tf.keras.models.load_model(os.path.join(MODEL_DIR, "densenet121.h5"), compile=False)
         print("DenseNet121 loaded successfully")
     except Exception as e:
         models['DenseNet121'] = None
         print(f"DenseNet121 loading error: {str(e)}")
     
     try:
-        models['InceptionV3'] = tf.keras.models.load_model("inceptionv3.h5", compile=False)
+        models['InceptionV3'] = tf.keras.models.load_model(os.path.join(MODEL_DIR, "inception.h5"), compile=False)
         print("InceptionV3 loaded successfully")
     except Exception as e:
         models['InceptionV3'] = None
@@ -263,7 +367,7 @@ def load_models():
     try:
         device = torch.device('cpu')
         efficientnet_model = timm.create_model('efficientnet_b0', pretrained=False, num_classes=2)
-        efficientnet_model.load_state_dict(torch.load("efficientnet_b0.pth", map_location=device))
+        efficientnet_model.load_state_dict(torch.load(os.path.join(MODEL_DIR, "best_effnet_model.pth"), map_location=device))
         efficientnet_model.eval()
         models['EfficientNetB0'] = efficientnet_model
         print("EfficientNetB0 loaded successfully")
