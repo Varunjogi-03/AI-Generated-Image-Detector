@@ -2,6 +2,10 @@
 
 Simple Streamlit app for detecting whether an image is AI-generated or real using multiple pretrained models.
 
+## Live Demo
+
+- https://ai-generated-image-detector-ptgz56ldwnxumunybzwyua.streamlit.app/
+
 ## Setup
 
 1. Open PowerShell and change to the project folder:
