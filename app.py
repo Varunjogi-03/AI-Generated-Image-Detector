@@ -1,11 +1,12 @@
 import os
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
 import torch
 import torchvision.transforms as transforms
 import timm
+import tensorflow as tf
+
 
 try:
     import gdown
